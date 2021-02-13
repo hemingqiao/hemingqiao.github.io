@@ -171,9 +171,12 @@ function trackKeys(keys) {
       event.preventDefault();
     }
   }
-
   window.addEventListener("keydown", track);
   window.addEventListener("keyup", track);
+  down.unregister = () => {
+    window.removeEventListener("keydown", track);
+    window.removeEventListener("keyup", track);
+  };
   return down;
 }
 
@@ -191,6 +194,7 @@ class Lava {
     return "lava";
   }
 
+  // 共有三种类型不同的熔岩，使用ch来标识
   static create(pos, ch) {
     if (ch == "=") {
       return new Lava(pos, new Vec(2, 0));
@@ -420,9 +424,31 @@ function runLevel(level, Display) {
   let display = new Display(document.body, level);
   let state = State.start(level);
   let ending = 1;
+  let running = "yes";
 
   return new Promise(resolve => {
-    runAnimation(time => {
+    function escHandler(event) {
+      if (event.key != "Escape") return;
+      event.preventDefault();
+      if (running == "no") {
+        running = "yes";
+        runAnimation(frame);
+      } else if (running == "yes") {
+        running = "pausing";
+      } else {
+        running = "yes";
+      }
+    }
+
+    window.addEventListener("keydown", escHandler);
+    let arrowKeys = trackKeys(["ArrowLeft", "ArrowRight", "ArrowUp"]);
+
+    function frame(time) {
+      if (running == "pausing") {
+        running = "no";
+        return false;
+      }
+
       state = state.update(time, arrowKeys);
       display.syncState(state);
       if (state.status == "playing") {
@@ -432,19 +458,49 @@ function runLevel(level, Display) {
         return true;
       } else {
         display.clear();
+        window.removeEventListener("keydown", escHandler);
+        arrowKeys.unregister();
         resolve(state.status);
         return false;
       }
-    });
+    }
+    runAnimation(frame);
   });
 }
 
 
 async function runGame(plans, Display) {
-  for (let level = 0; level < plans.length; ) {
+  let lives = 3;
+  let level = 0;
+  for (; level < plans.length && lives > 0; ) {
+    if (level == 0 && lives == 3) showInfo(level, lives);
     let status = await runLevel(new Level(plans[level]), Display);
-    if (status == "won") level++;
+    if (status == "won") {
+      level++;
+    } else {
+      lives--;
+    }
+    updateInfo(level, lives);
   }
-  alert("You have won!");
+  if (lives > 0) {
+    alert("You have won!");
+  } else {
+    alert("Game over");
+  }
+  window.location.reload();
 }
 
+function showInfo(level, lives) {
+  let wrapper = document.createElement("div");
+  wrapper.className = "wrapper";
+  let info = document.createElement("h1");
+  info.innerHTML = `At level ${level}, Lives: ${lives}`;
+  info.id = "info";
+  wrapper.append(info);
+  document.body.append(wrapper);
+}
+
+function updateInfo(level, lives) {
+  const info = document.getElementById("info");
+  info.innerHTML = `At level ${level}, Lives: ${lives}`;
+}

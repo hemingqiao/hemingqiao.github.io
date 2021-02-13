@@ -45,3 +45,18 @@
   position: relative;
   margin: auto;
 }
+
+canvas {
+  display: block;
+  margin: 0 auto;
+}
+
+.wrapper {
+  margin: auto;
+  width: 600px;
+  text-align: center;
+}
+
+#info {
+  display: inline-block;
+}
